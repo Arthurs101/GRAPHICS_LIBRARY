@@ -38,9 +38,9 @@ public:
                 image.read(reinterpret_cast<char*>(&b), 1);
                 image.read(reinterpret_cast<char*>(&g), 1);
                 image.read(reinterpret_cast<char*>(&r), 1);
-                pixels[y][x][0] = static_cast<float>(r) / 255.0f;
-                pixels[y][x][1] = static_cast<float>(g) / 255.0f;
-                pixels[y][x][2] = static_cast<float>(b) / 255.0f;
+                pixels[y][x][0] = static_cast<float>(r);
+                pixels[y][x][1] = static_cast<float>(g);
+                pixels[y][x][2] = static_cast<float>(b);
             }
         }
     }
@@ -48,7 +48,7 @@ public:
         if (0 <= u && u < 1 && 0 <= v && v < 1) {
             int x = static_cast<int>(u * width);
             int y = static_cast<int>(v * height);
-            if (x >= 0 && x < width && y >= 0 && y <= height) {
+            if (x >= 0 && x < width && y >= 0 && y < height) {
                 return pixels[y][x];
             }
             else {
