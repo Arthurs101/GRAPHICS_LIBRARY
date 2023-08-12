@@ -14,10 +14,10 @@ public:
         std::vector<float> vt = multiplyMatrixByVector(modelMatrix, { vertex[0],vertex[1],vertex[2] ,1 });
         return { vt[0] / vt[3],vt[1] / vt[3],vt[2] / vt[3] };
     }
-    std::vector<float> fragmentShader(std::vector<float> txtCrds) {
+    std::vector<float> fragmentShader(float u , float v) {
         if (txt.IsValid()) {
          
-            return txt.getColor(txtCrds[0], txtCrds[1]);;
+            return txt.getColor(u, v);
         }
         else {
             return { 0,0,255 };

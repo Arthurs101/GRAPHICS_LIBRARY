@@ -320,10 +320,15 @@ class vgImage {
                                 imgData.zbuffer[x][y] = z;
                                 // Calcular los valores de color del píxel mediante interpolación lineal
                                 //coordenadas del texto
-                                std::vector<float> vtT = { u * vtA[0] + v * vtB[0] + w * vtC[0],
-                                    u * vtA[1] + v * vtB[1] + w * vtC[1] };
+                                float u0 = static_cast<float>(u * vtA[0] + v * vtB[0] + w * vtC[0]);
+                                float v0 = static_cast<float> (u * vtA[1] + v * vtB[1] + w * vtC[1]);
                                 // Asignar los valores de color al píxel en el array de pixeles
-                                vgPoint(x, y, currShade.fragmentShader(vtT));
+                                std::vector<float> color = currShade.fragmentShader(u0,v0);
+                                unsigned char r, g, b;
+                                r = static_cast<unsigned char>(color[0]);
+                                g = static_cast<unsigned char>(color[1]);
+                                b = static_cast<unsigned char>(color[2]);
+                                vgPoint(x, y, { r, g, b });
                             }
                         }
                     }
@@ -409,8 +414,7 @@ class vgImage {
                 switch (PRIMTYPE)
                 {
                 case 't':
-                    for (int vtx = 0; vtx < 10; vtx += 3) {
-                        std::vector<std::vector<float>> triangle = { {vertices[vtx], vertices[vtx + 1], vertices[vtx + 2]} };
+                    for (int vtx = 0; vtx < vertices.size(); vtx += 3) {
                         CreateBCTriangle(vertices[vtx], vertices[vtx + 1], vertices[vtx + 2], text_cords[vtx], text_cords[vtx +1 ], text_cords[vtx + 2 ]);
                     };
                     break;
