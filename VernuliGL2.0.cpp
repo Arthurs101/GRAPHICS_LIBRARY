@@ -20,14 +20,14 @@ struct Pixel {
         blue = b;
     }
     Pixel(std::vector<int> rgb) {
-        red = (unsigned char)rgb[0];
-        green = (unsigned char)rgb[1];
-        blue = (unsigned char)rgb[2];
+        red = static_cast<unsigned char>(rgb[0]);
+        green = static_cast<unsigned char>(rgb[1]);
+        blue = static_cast<unsigned char>(rgb[2]);
     }
     Pixel(std::vector<float> rgb) {
-        red = (unsigned char)rgb[0];
-        green = (unsigned char)rgb[1];
-        blue = (unsigned char)rgb[2];
+        red = static_cast<unsigned char>(rgb[0]);
+        green = static_cast<unsigned char>(rgb[1]);
+        blue = static_cast<unsigned char>(rgb[2]);
     }
 };
 struct Image {
@@ -243,7 +243,7 @@ class vgImage {
             objects.push_back(ObjParser(filename, transformobj, scaleobj, rotationobj, texturefilename));
         }
 
-        void CreateBCTriangle(const std::vector<float>& A, const std::vector<float>& B, const std::vector<float>& C, const Pixel& color = {255,255,255},bool multicolor = false) {
+        void CreateBCTriangle(const std::vector<float>& A, const std::vector<float>& B, const std::vector<float>& C, bool multicolor = false, const Pixel& color = {255,255,255}) {
             
             int minX = std::round(std::min({ A[0], B[0], C[0] }));
             int maxX = std::round(std::max({ A[0], B[0], C[0] }));
@@ -322,10 +322,8 @@ class vgImage {
                                 //coordenadas del texto
                                 std::vector<float> vtT = { u * vtA[0] + v * vtB[0] + w * vtC[0],
                                     u * vtA[1] + v * vtB[1] + w * vtC[1] };
-                                std::vector<int> rgb_int = currShade.fragmentShader(vtT);
                                 // Asignar los valores de color al píxel en el array de pixeles
-                                vgPoint(x, y, { static_cast<unsigned char>(rgb_int[0]),static_cast<unsigned char>(rgb_int[1])
-                                    ,static_cast<unsigned char>(rgb_int[2]) });
+                                vgPoint(x, y, currShade.fragmentShader(vtT));
                             }
                         }
                     }
@@ -387,6 +385,17 @@ class vgImage {
             
         }
         
+        void vgPaintBackground(Texture txt) {
+            for (int x = 0; x < width; x++) {
+                for (int y = 0; y < height; y++)
+                {
+                    float u = x / width;
+                    float v = y / height;                      
+                    vgPoint(x, y, txt.getColor(u, v) );
+                }
+            }
+
+        }
         
     private:
 
@@ -412,7 +421,7 @@ class vgImage {
                 {
                 case 't':
                     for (int vtx = 0; vtx < vertices.size(); vtx += 3) {
-                        CreateBCTriangle(vertices[vtx], vertices[vtx + 1], vertices[vtx + 2], {255,255,255}, true);
+                        CreateBCTriangle(vertices[vtx], vertices[vtx + 1], vertices[vtx + 2], true);
                     };
                     break;
 

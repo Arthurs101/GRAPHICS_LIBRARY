@@ -34,13 +34,13 @@ public:
 
         for (int y = 0; y < height; ++y) {
             for (int x = 0; x < width; ++x) {
-                unsigned char r, g, b;
+                unsigned char b, g, r;
                 image.read(reinterpret_cast<char*>(&b), 1);
                 image.read(reinterpret_cast<char*>(&g), 1);
                 image.read(reinterpret_cast<char*>(&r), 1);
-                pixels[y][x][0] = static_cast<float>(r);
-                pixels[y][x][1] = static_cast<float>(g);
-                pixels[y][x][2] = static_cast<float>(b);
+                pixels[y][x] = { static_cast<float>(r) / 255.0f,
+                                static_cast<float>(g) / 255.0f,
+                                static_cast<float>(b) / 255.0f };
             }
         }
     }
@@ -58,7 +58,7 @@ public:
             
         }
         else {
-            return std::vector<float>{ 0, 255, 0 };
+            return { 0, 255, 0 };
         }
     }
     bool IsValid() {
