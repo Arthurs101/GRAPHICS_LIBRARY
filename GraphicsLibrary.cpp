@@ -7,7 +7,6 @@ int main() {
     vgImage Img(width, height);
     Texture txt("Yanfei.bmp");
     Img.vgPaintBackground(txt);
-    Img.CreateBCTriangle({ 0,0,0 }, { (float)width / 2, (float)height - 1 , 0 }, {(float)width-1 , 0 ,0},true);
     Img.vgWriteBMP("Output.bmp");
     return 0;
 }

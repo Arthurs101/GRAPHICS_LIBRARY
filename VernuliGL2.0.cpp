@@ -387,15 +387,21 @@ class vgImage {
         
         void vgPaintBackground(Texture txt) {
             for (int x = 0; x < width; x++) {
-                for (int y = 0; y < height; y++)
-                {
-                    float u = x / width;
-                    float v = y / height;                      
-                    vgPoint(x, y, txt.getColor(u, v) );
+                for (int y = 0; y < height; y++) {
+                    float u = static_cast<float>(x) / width;
+                    float v = static_cast<float>(y) / height;
+
+                    unsigned char r, g, b;
+                    std::vector<float> color = txt.getColor(u, v);
+                    r = static_cast<unsigned char>(color[0]);
+                    g = static_cast<unsigned char>(color[1]);
+                    b = static_cast<unsigned char>(color[2]);
+
+                    vgPoint(x, y, { r, g, b });
                 }
             }
-
         }
+
         
     private:
 
