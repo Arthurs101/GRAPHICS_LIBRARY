@@ -35,7 +35,7 @@ struct Image {
     std::vector<std::vector<float>> zbuffer;
     int width;
     int height;
-    Image(int w, int h) : pixels(w, std::vector<Pixel>(h, { 0, 0, 0 })),zbuffer(w, std::vector<float>(h, 100000)), width(w), height(h) {}
+    Image(int w, int h) : pixels(w, std::vector<Pixel>(h, { 0, 0, 0 })),zbuffer(w, std::vector<float>(h, 3.4028235e38)), width(w), height(h) {} //profundidades de zbuffer siendo el valor máximo posible para un float
 };
 
 //constantes y variables globales
@@ -48,8 +48,17 @@ class vgImage {
     std::vector<ObjParser> objects;
     std::vector<Texture> textures;
     Shader currShade;
+    std::vector<std::vector<float>> Cmatrix;
+    std::vector<std::vector<float>> Viewmatrix;
+    std::vector<std::vector<float>> Pmatrix;
+    int vpX, vpY, vpWidth, vpHeight;
+    std::vector<std::vector<float>> vpMatrix;
     public:
-        vgImage(int w, int h) : width(w), height(h), imgData(w, h) {}
+        vgImage(int w, int h) : width(w), height(h), imgData(w, h) {
+            glViewport(0, 0, this->width, this->height);
+            vgSetCamara();
+            vgPerspective();
+        }
         /*
         Funcion para escribir el archivo BMP
         */
@@ -343,9 +352,8 @@ class vgImage {
                     std::vector<std::vector<float>> texture_coords = {};
                     int faces_ = objects[i].faces.size();
                     bool isValidTXT = objects[i].texture.IsValid();
-                    currShade = Shader(M,objects[i].texture);
+                    currShade = Shader(M,objects[i].texture,this->Viewmatrix,this->Pmatrix,this->vpMatrix);
                     for (int face = 0; face < faces_; face++) {
-
                         std::vector<float> v0 = objects[i].vertices[objects[i].faces[face][0][0] - 1];
                         std::vector<float> v1 = objects[i].vertices[objects[i].faces[face][1][0] - 1];
                         std::vector<float> v2 = objects[i].vertices[objects[i].faces[face][2][0] - 1];
@@ -407,7 +415,53 @@ class vgImage {
             }
         }
 
-        
+        void vgSetCamara(std::vector<float> trasnlate = {0,0,0} , std::vector<float> rotate = { 0,0,0 }) {
+            this->Cmatrix = Generate3DObjectMatrix(trasnlate, {1,1,1} ,rotate);
+            this->Viewmatrix = matriz_inversa(this->Cmatrix);
+        }
+
+        void vgLookAt(std::vector<float> Cpos = { 0,0,0 } , std::vector<float> Eyepos = { 0,0,0 }) {
+            std::vector<float> worldUp = { 0,1,0 };
+            std::vector<float> forward = subtract_arrays(Cpos, Eyepos);
+            forward = normalizar_vector(forward);
+
+            std::vector<float> rigth = producto_cruz(worldUp, forward);
+            rigth = normalizar_vector(rigth);
+
+            std::vector<float> up = producto_cruz(forward, rigth);
+            up = normalizar_vector(up);
+
+            this->Cmatrix = { { rigth[0], up[0], forward[0], Cpos[0] },
+            { rigth[1], up[1], forward[1],  Cpos[1] },
+            { rigth[2], up[2], forward[2],  Cpos[2] },
+            { 0, 0, 0, 1 } };
+
+            this->Viewmatrix = matriz_inversa(this->Cmatrix);
+        }
+
+        void vgPerspective(float fov = 60 , float n = 0.1 , float f = 1000 ) {
+            float aspect_ratio = static_cast<float> (width) / height;
+            float t = std::tan((fov * PI / 180) / 2) * n;
+            float r = t * aspect_ratio;
+            this->Pmatrix = { {n / r , 0,0,0} , 
+                            {0,n/t,0,0},
+                            {0, 0, -(f + n) / (f - n), -2 * f * n / (f - n)},
+                            {0, 0, -1, 0} };
+        }
+
+        void glViewport(int x, int y, int width, int height) {
+            vpX = x;
+            vpY = y;
+            vpWidth = width;
+            vpHeight = height;
+
+            vpMatrix = {
+                {vpWidth / 2.0f, 0, 0, vpX + vpWidth / 2.0f},
+                {0, vpHeight / 2.0f, 0, vpY + vpHeight / 2.0f},
+                {0, 0, 0.5f, 0.5f},
+                {0, 0, 0, 1}
+            };
+        }
     private:
 
             void Assemble(std::vector<std::vector<float>>& vertices, std::vector<std::vector<float>>& text_cords,char PRIMTYPE = 't') {
