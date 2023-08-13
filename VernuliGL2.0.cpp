@@ -393,7 +393,7 @@ class vgImage {
                         if (objects[i].faces[face].size() == 4) {
                             std::vector<float> v3 = objects[i].vertices[objects[i].faces[face][3][0] - 1];;
                             std::vector<float> vt3 = objects[i].textcoords[objects[i].faces[face][3][1] - 1];;
-                            std::vector<float> vn3 = objects[i].normals[objects[i].faces[face][2][2] - 1];
+                            std::vector<float> vn3 = objects[i].normals[objects[i].faces[face][3][2] - 1];
                             
                             shaded_vertices.push_back(currShade.vertexShader(v0));
                             shaded_vertices.push_back(currShade.vertexShader(v2));
@@ -404,7 +404,8 @@ class vgImage {
                                 texture_coords.push_back(vt2);
                                 texture_coords.push_back(vt3);
                             }
-
+                            face_normals.push_back(vn0);
+                            face_normals.push_back(vn2);
                             face_normals.push_back(vn3);
                         }
                     }
