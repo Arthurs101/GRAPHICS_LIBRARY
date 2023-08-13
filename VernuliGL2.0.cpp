@@ -55,9 +55,9 @@ class vgImage {
     std::vector<std::vector<float>> vpMatrix;
     public:
         vgImage(int w, int h) : width(w), height(h), imgData(w, h) {
-            glViewport(0, 0, this->width, this->height);
+            /*glViewport(0, 0, this->width, this->height);
             vgSetCamara();
-            vgPerspective();
+            vgPerspective();*/
         }
         /*
         Funcion para escribir el archivo BMP
@@ -352,7 +352,7 @@ class vgImage {
                     std::vector<std::vector<float>> texture_coords = {};
                     int faces_ = objects[i].faces.size();
                     bool isValidTXT = objects[i].texture.IsValid();
-                    currShade = Shader(M,objects[i].texture,this->Viewmatrix,this->Pmatrix,this->vpMatrix);
+                    currShade = Shader(M,objects[i].texture);
                     for (int face = 0; face < faces_; face++) {
                         std::vector<float> v0 = objects[i].vertices[objects[i].faces[face][0][0] - 1];
                         std::vector<float> v1 = objects[i].vertices[objects[i].faces[face][1][0] - 1];
@@ -361,6 +361,15 @@ class vgImage {
                         std::vector<float> vt0 = objects[i].textcoords[objects[i].faces[face][0][1] - 1];
                         std::vector<float> vt1 = objects[i].textcoords[objects[i].faces[face][1][1] - 1];
                         std::vector<float> vt2 = objects[i].textcoords[objects[i].faces[face][2][1] - 1];
+
+                        shaded_vertices.push_back(currShade.vertexShader(v0));
+                        shaded_vertices.push_back(currShade.vertexShader(v1));
+                        shaded_vertices.push_back(currShade.vertexShader(v2));
+                        if (isValidTXT) {
+                            texture_coords.push_back(vt0);
+                            texture_coords.push_back(vt1);
+                            texture_coords.push_back(vt2);
+                        }
 
                         if (objects[i].faces[face].size() == 4) {
                             std::vector<float> v3 = objects[i].vertices[objects[i].faces[face][3][0] - 1];;
@@ -372,16 +381,6 @@ class vgImage {
                                 texture_coords.push_back(vt0);
                                 texture_coords.push_back(vt2);
                                 texture_coords.push_back(vt3);
-                            }
-                        }
-                        else {
-                            shaded_vertices.push_back(currShade.vertexShader(v0));
-                            shaded_vertices.push_back(currShade.vertexShader(v1));
-                            shaded_vertices.push_back(currShade.vertexShader(v2));
-                            if (isValidTXT) {
-                                texture_coords.push_back(vt0);
-                                texture_coords.push_back(vt1);
-                                texture_coords.push_back(vt2);
                             }
                         }
                     }

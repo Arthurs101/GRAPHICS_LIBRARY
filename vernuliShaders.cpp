@@ -7,7 +7,7 @@ class Shader {
     std::vector<std::vector<float>> viewPMatrix;
     std::vector<std::vector<float>> viewMatrix;
     std::vector<std::vector<float>> perspectiveMatrix;
-    std::vector<std::vector<float>> transformMatrix;
+    std::vector<std::vector<float>> transformMatrix = {};
     Texture txt;
 public:
     Shader(std::vector<std::vector<float>> _modelMatrix, Texture _txt = Texture(), std::vector<std::vector<float>> _viewMatrix = {},
@@ -16,7 +16,7 @@ public:
         modelMatrix = _modelMatrix;
         viewMatrix = _viewMatrix;
         perspectiveMatrix = _perspectiveMatrix;
-        transformMatrix = multiplyMatrices(multiplyMatrices(multiplyMatrices(viewPMatrix, perspectiveMatrix), viewMatrix), modelMatrix);
+        //transformMatrix = multiplyMatrices(multiplyMatrices(multiplyMatrices(viewPMatrix, perspectiveMatrix), viewMatrix), modelMatrix);
     }
     std::vector<float> vertexShader(std::vector<float> vertex) {
         std::vector<float> vt;
@@ -32,8 +32,7 @@ public:
     std::vector<float> fragmentShader(float u , float v) {
         if (txt.IsValid()) {
          
-            //return txt.getColor(u, v);
-            return { 200,200,200 };
+            return txt.getColor(u, v);
         }
         else {
             return { 0,0,255 };
