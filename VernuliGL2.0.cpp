@@ -35,7 +35,8 @@ struct Image {
     std::vector<std::vector<float>> zbuffer;
     int width;
     int height;
-    Image(int w, int h) : pixels(w, std::vector<Pixel>(h, { 0, 0, 0 })),zbuffer(w, std::vector<float>(h, 3.4028235e38)), width(w), height(h) {} //profundidades de zbuffer siendo el valor máximo posible para un float
+    Image(int w, int h) : pixels(w, std::vector<Pixel>(h, { 0, 0, 0 })),
+        zbuffer(w, std::vector<float>(h, 3.4028235e38)), width(w), height(h) {} //profundidades de zbuffer siendo el valor máximo posible para un float
 };
 
 //constantes y variables globales
@@ -53,11 +54,12 @@ class vgImage {
     std::vector<std::vector<float>> Pmatrix;
     int vpX, vpY, vpWidth, vpHeight;
     std::vector<std::vector<float>> vpMatrix;
+    std::vector<float> LightPos = {0,0,0};
     public:
         vgImage(int w, int h) : width(w), height(h), imgData(w, h) {
-            /*glViewport(0, 0, this->width, this->height);
+            glViewport(0, 0, this->width, this->height);
             vgSetCamara();
-            vgPerspective();*/
+            vgPerspective();
         }
         /*
         Funcion para escribir el archivo BMP
@@ -279,7 +281,7 @@ class vgImage {
                         float z = u * A[2] + v * B[2] + w * C[2];
                         if (x < imgData.width && y < imgData.height && x >= 0 && y >= 0) {
                             if (z < imgData.zbuffer[x][y]) {
-                                imgData.zbuffer[x][y] = z;
+                                this->imgData.zbuffer[x][y] = z;
                                 // Calcular los valores de color del píxel mediante interpolación lineal
                                 if (multicolor) {
                                     r = static_cast<unsigned char>(color.red * u);
@@ -345,14 +347,15 @@ class vgImage {
             }
         }
 
-        void Render3DObjects(char PRIMTYPE = 't') {
+        void Render3DObjects(int shade_opt = 0 ,char PRIMTYPE = 't') {
             for (int i = 0; i < objects.size(); i++) {
                     std::vector<std::vector<float>> M = Generate3DObjectMatrix(objects[i].transform, objects[i].scale, objects[i].rotation);
                     std::vector<std::vector<float>> shaded_vertices = {};
                     std::vector<std::vector<float>> texture_coords = {};
                     int faces_ = objects[i].faces.size();
                     bool isValidTXT = objects[i].texture.IsValid();
-                    currShade = Shader(M,objects[i].texture);
+                    currShade = Shader(M,objects[i].texture,this->Viewmatrix,this->Pmatrix,this->vpMatrix,shade_opt);
+                   
                     for (int face = 0; face < faces_; face++) {
                         std::vector<float> v0 = objects[i].vertices[objects[i].faces[face][0][0] - 1];
                         std::vector<float> v1 = objects[i].vertices[objects[i].faces[face][1][0] - 1];
@@ -384,9 +387,8 @@ class vgImage {
                             }
                         }
                     }
-                    
                     if (isValidTXT) {
-                         Assemble(shaded_vertices, texture_coords);
+                         Assemble(shaded_vertices, texture_coords , PRIMTYPE);
                     }
                     else {
                         Assemble(shaded_vertices);

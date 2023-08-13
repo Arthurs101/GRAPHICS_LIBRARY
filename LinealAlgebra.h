@@ -70,7 +70,7 @@ std::vector<float> barycentricCoords(const std::vector<float>& A, const std::vec
     float v = areaACP / areaABC;
     float w = areaABP / areaABC;
 
-    if (0 <= u && u <= 1 && 0 <= v && v <= 1 && 0 <= w && w <= 1 && std::abs(u + v + w - 1.0) < 1e-6) {
+    if (0 <= u && u <= 1 && 0 <= v && v <= 1 && 0 <= w && w <= 1 && std::abs(u + v + w - 1.0) < 1e-4) {
         return std::vector<float>{u, v, w};
     }
     else {
@@ -198,7 +198,8 @@ std::vector<float> normalizar_vector(const std::vector<float>& vector) {
         throw std::invalid_argument("No se puede normalizar un vector nulo.");
     }
 
-    std::vector<float> vector_normalizado(vector.size(), 0.0);
+    std::vector<float> vector_normalizado;
+    vector_normalizado.resize(vector.size(), 0);
     for (size_t i = 0; i < vector.size(); ++i) {
         vector_normalizado[i] = vector[i] / norma;
     }

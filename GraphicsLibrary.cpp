@@ -7,9 +7,9 @@ int main() {
     vgImage Img(width, height);
     //Texture txt("Yanfei.bmp");
     //Img.vgPaintBackground(txt);
-    //Img.vgLookAt({ (float)width / 2,(float) height / 2,0 }, { (float)width / 2 ,400,0});
+    //Img.vgLookAt({0,-10,10}, { (float)width / 2 ,400,0});
     Img.vgLoad3dObject("BOT.obj", { (float)width / 2  ,0 + 400,0 }, {  200,200,200 }, {0,0,92},"BOT.bmp");
-    Img.Render3DObjects();
+    Img.Render3DObjects(1);
     Img.vgWriteBMP("Output.bmp");
     return 0;
 }
