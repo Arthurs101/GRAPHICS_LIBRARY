@@ -35,12 +35,13 @@ struct Image {
     std::vector<std::vector<float>> zbuffer;
     int width;
     int height;
-    Image(int w, int h) : pixels(w, std::vector<Pixel>(h, { 0, 0, 0 })),zbuffer(w, std::vector<float>(h, 100000)), width(w), height(h) {}
+    Image(int w, int h) : pixels(w, std::vector<Pixel>(h, { 0, 0, 0 })),
+        zbuffer(w, std::vector<float>(h, 3.4028235e38)), width(w), height(h) {} //profundidades de zbuffer siendo el valor máximo posible para un float
 };
 
 //constantes y variables globales
-
 # define PI 3.14159265
+
 class vgImage {
     int width;
     int height;
@@ -48,8 +49,18 @@ class vgImage {
     std::vector<ObjParser> objects;
     std::vector<Texture> textures;
     Shader currShade;
+    std::vector<std::vector<float>> Cmatrix;
+    std::vector<std::vector<float>> Viewmatrix;
+    std::vector<std::vector<float>> Pmatrix;
+    int vpX, vpY, vpWidth, vpHeight;
+    std::vector<std::vector<float>> vpMatrix;
+    std::vector<float> LightPos = {0,0,0};
     public:
-        vgImage(int w, int h) : width(w), height(h), imgData(w, h) {}
+        vgImage(int w, int h) : width(w), height(h), imgData(w, h) {
+            glViewport(0, 0, this->width, this->height);
+            vgSetCamara();
+            vgPerspective();
+        }
         /*
         Funcion para escribir el archivo BMP
         */
@@ -270,7 +281,7 @@ class vgImage {
                         float z = u * A[2] + v * B[2] + w * C[2];
                         if (x < imgData.width && y < imgData.height && x >= 0 && y >= 0) {
                             if (z < imgData.zbuffer[x][y]) {
-                                imgData.zbuffer[x][y] = z;
+                                this->imgData.zbuffer[x][y] = z;
                                 // Calcular los valores de color del píxel mediante interpolación lineal
                                 if (multicolor) {
                                     r = static_cast<unsigned char>(color.red * u);
@@ -292,7 +303,8 @@ class vgImage {
         }
 
         void CreateBCTriangle(const std::vector<float>& A, const std::vector<float>& B, const std::vector<float>& C, 
-            const std::vector<float>& vtA, const std::vector<float>& vtB, const std::vector<float>& vtC) {
+            const std::vector<float>& vtA, const std::vector<float>& vtB, const std::vector<float>& vtC,
+            const std::vector<float>& vnA, const std::vector<float>& vnB, const std::vector<float>& vnC) {
 
             int minX = std::round(std::min({ A[0], B[0], C[0] }));
             int maxX = std::round(std::max({ A[0], B[0], C[0] }));
@@ -323,7 +335,12 @@ class vgImage {
                                 float u0 = static_cast<float>(u * vtA[0] + v * vtB[0] + w * vtC[0]);
                                 float v0 = static_cast<float> (u * vtA[1] + v * vtB[1] + w * vtC[1]);
                                 // Asignar los valores de color al píxel en el array de pixeles
-                                std::vector<float> color = currShade.fragmentShader(u0,v0);
+                                //std::vector<float> color = currShade.fragmentShader(u0,v0);
+                                std::vector<float> color = currShade.lightShader(
+                                    {u,v,w},
+                                    { vtA, vtB, vtC },
+                                    { vnA, vnB, vnC }
+                                );
                                 unsigned char r, g, b;
                                 r = static_cast<unsigned char>(color[0]);
                                 g = static_cast<unsigned char>(color[1]);
@@ -336,16 +353,17 @@ class vgImage {
             }
         }
 
-        void Render3DObjects(char PRIMTYPE = 't') {
+        void Render3DObjects(int shade_opt = 0 ,char PRIMTYPE = 't') {
             for (int i = 0; i < objects.size(); i++) {
                     std::vector<std::vector<float>> M = Generate3DObjectMatrix(objects[i].transform, objects[i].scale, objects[i].rotation);
                     std::vector<std::vector<float>> shaded_vertices = {};
                     std::vector<std::vector<float>> texture_coords = {};
+                    std::vector<std::vector<float>> face_normals = {};
                     int faces_ = objects[i].faces.size();
                     bool isValidTXT = objects[i].texture.IsValid();
-                    currShade = Shader(M,objects[i].texture);
+                    currShade = Shader(M,objects[i].texture,this->Viewmatrix,this->Pmatrix,this->vpMatrix,shade_opt);
+                   
                     for (int face = 0; face < faces_; face++) {
-
                         std::vector<float> v0 = objects[i].vertices[objects[i].faces[face][0][0] - 1];
                         std::vector<float> v1 = objects[i].vertices[objects[i].faces[face][1][0] - 1];
                         std::vector<float> v2 = objects[i].vertices[objects[i].faces[face][2][0] - 1];
@@ -353,33 +371,46 @@ class vgImage {
                         std::vector<float> vt0 = objects[i].textcoords[objects[i].faces[face][0][1] - 1];
                         std::vector<float> vt1 = objects[i].textcoords[objects[i].faces[face][1][1] - 1];
                         std::vector<float> vt2 = objects[i].textcoords[objects[i].faces[face][2][1] - 1];
+                        //face normals
+                        std::vector<float> vn0 = objects[i].normals[objects[i].faces[face][0][2] - 1];
+                        std::vector<float> vn1 = objects[i].normals[objects[i].faces[face][1][2] - 1];
+                        std::vector<float> vn2 = objects[i].normals[objects[i].faces[face][2][2] - 1];
+
+                        shaded_vertices.push_back(currShade.vertexShader(v0));
+                        shaded_vertices.push_back(currShade.vertexShader(v1));
+                        shaded_vertices.push_back(currShade.vertexShader(v2));
+
+                        if (isValidTXT) {
+                            texture_coords.push_back(vt0);
+                            texture_coords.push_back(vt1);
+                            texture_coords.push_back(vt2);
+                        }
+
+                        face_normals.push_back(vn0);
+                        face_normals.push_back(vn1);
+                        face_normals.push_back(vn2);
 
                         if (objects[i].faces[face].size() == 4) {
                             std::vector<float> v3 = objects[i].vertices[objects[i].faces[face][3][0] - 1];;
                             std::vector<float> vt3 = objects[i].textcoords[objects[i].faces[face][3][1] - 1];;
+                            std::vector<float> vn3 = objects[i].normals[objects[i].faces[face][3][2] - 1];
+                            
                             shaded_vertices.push_back(currShade.vertexShader(v0));
                             shaded_vertices.push_back(currShade.vertexShader(v2));
                             shaded_vertices.push_back(currShade.vertexShader(v3));
+                            
                             if (isValidTXT) {
                                 texture_coords.push_back(vt0);
                                 texture_coords.push_back(vt2);
                                 texture_coords.push_back(vt3);
                             }
-                        }
-                        else {
-                            shaded_vertices.push_back(currShade.vertexShader(v0));
-                            shaded_vertices.push_back(currShade.vertexShader(v1));
-                            shaded_vertices.push_back(currShade.vertexShader(v2));
-                            if (isValidTXT) {
-                                texture_coords.push_back(vt0);
-                                texture_coords.push_back(vt1);
-                                texture_coords.push_back(vt2);
-                            }
+                            face_normals.push_back(vn0);
+                            face_normals.push_back(vn2);
+                            face_normals.push_back(vn3);
                         }
                     }
-                    
                     if (isValidTXT) {
-                         Assemble(shaded_vertices, texture_coords);
+                         Assemble(shaded_vertices, texture_coords ,face_normals, PRIMTYPE);
                     }
                     else {
                         Assemble(shaded_vertices);
@@ -407,15 +438,63 @@ class vgImage {
             }
         }
 
-        
+        void vgSetCamara(std::vector<float> trasnlate = {0,0,0} , std::vector<float> rotate = { 0,0,0 }) {
+            this->Cmatrix = Generate3DObjectMatrix(trasnlate, {1,1,1} ,rotate);
+            this->Viewmatrix = matriz_inversa(this->Cmatrix);
+        }
+
+        void vgLookAt(std::vector<float> Cpos = { 0,0,0 } , std::vector<float> Eyepos = { 0,0,0 }) {
+            std::vector<float> worldUp = { 0,1,0 };
+            std::vector<float> forward = subtract_arrays(Cpos, Eyepos);
+            forward = normalizar_vector(forward);
+
+            std::vector<float> rigth = producto_cruz(worldUp, forward);
+            rigth = normalizar_vector(rigth);
+
+            std::vector<float> up = producto_cruz(forward, rigth);
+            up = normalizar_vector(up);
+
+            this->Cmatrix = { { rigth[0], up[0], forward[0], Cpos[0] },
+            { rigth[1], up[1], forward[1],  Cpos[1] },
+            { rigth[2], up[2], forward[2],  Cpos[2] },
+            { 0, 0, 0, 1 } };
+
+            this->Viewmatrix = matriz_inversa(this->Cmatrix);
+        }
+
+        void vgPerspective(float fov = 60 , float n = 0.1 , float f = 1000 ) {
+            float aspect_ratio = static_cast<float> (width) / height;
+            float t = std::tan((fov * PI / 180) / 2) * n;
+            float r = t * aspect_ratio;
+            this->Pmatrix = { {n / r , 0,0,0} , 
+                            {0,n/t,0,0},
+                            {0, 0, -(f + n) / (f - n), -2 * f * n / (f - n)},
+                            {0, 0, -1, 0} };
+        }
+
+        void glViewport(int x, int y, int width, int height) {
+            vpX = x;
+            vpY = y;
+            vpWidth = width;
+            vpHeight = height;
+
+            vpMatrix = {
+                {vpWidth / 2.0f, 0, 0, vpX + vpWidth / 2.0f},
+                {0, vpHeight / 2.0f, 0, vpY + vpHeight / 2.0f},
+                {0, 0, 0.5f, 0.5f},
+                {0, 0, 0, 1}
+            };
+        }
     private:
 
-            void Assemble(std::vector<std::vector<float>>& vertices, std::vector<std::vector<float>>& text_cords,char PRIMTYPE = 't') {
+            void Assemble(std::vector<std::vector<float>>& vertices, std::vector<std::vector<float>>& text_cords, std::vector<std::vector<float>>& face_normals,char PRIMTYPE = 't') {
                 switch (PRIMTYPE)
                 {
                 case 't':
                     for (int vtx = 0; vtx < vertices.size(); vtx += 3) {
-                        CreateBCTriangle(vertices[vtx], vertices[vtx + 1], vertices[vtx + 2], text_cords[vtx], text_cords[vtx +1 ], text_cords[vtx + 2 ]);
+                        CreateBCTriangle(vertices[vtx], vertices[vtx + 1], vertices[vtx + 2], 
+                                        text_cords[vtx], text_cords[vtx +1 ], text_cords[vtx + 2 ],
+                                        face_normals[vtx], face_normals[vtx + 1], face_normals[vtx + 2]);
                     };
                     break;
 
