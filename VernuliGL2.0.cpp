@@ -40,8 +40,8 @@ struct Image {
 };
 
 //constantes y variables globales
-
 # define PI 3.14159265
+
 class vgImage {
     int width;
     int height;
@@ -303,7 +303,8 @@ class vgImage {
         }
 
         void CreateBCTriangle(const std::vector<float>& A, const std::vector<float>& B, const std::vector<float>& C, 
-            const std::vector<float>& vtA, const std::vector<float>& vtB, const std::vector<float>& vtC) {
+            const std::vector<float>& vtA, const std::vector<float>& vtB, const std::vector<float>& vtC,
+            const std::vector<float>& vnA, const std::vector<float>& vnB, const std::vector<float>& vnC) {
 
             int minX = std::round(std::min({ A[0], B[0], C[0] }));
             int maxX = std::round(std::max({ A[0], B[0], C[0] }));
@@ -334,7 +335,12 @@ class vgImage {
                                 float u0 = static_cast<float>(u * vtA[0] + v * vtB[0] + w * vtC[0]);
                                 float v0 = static_cast<float> (u * vtA[1] + v * vtB[1] + w * vtC[1]);
                                 // Asignar los valores de color al píxel en el array de pixeles
-                                std::vector<float> color = currShade.fragmentShader(u0,v0);
+                                //std::vector<float> color = currShade.fragmentShader(u0,v0);
+                                std::vector<float> color = currShade.lightShader(
+                                    {u,v,w},
+                                    { vtA, vtB, vtC },
+                                    { vnA, vnB, vnC }
+                                );
                                 unsigned char r, g, b;
                                 r = static_cast<unsigned char>(color[0]);
                                 g = static_cast<unsigned char>(color[1]);
@@ -352,6 +358,7 @@ class vgImage {
                     std::vector<std::vector<float>> M = Generate3DObjectMatrix(objects[i].transform, objects[i].scale, objects[i].rotation);
                     std::vector<std::vector<float>> shaded_vertices = {};
                     std::vector<std::vector<float>> texture_coords = {};
+                    std::vector<std::vector<float>> face_normals = {};
                     int faces_ = objects[i].faces.size();
                     bool isValidTXT = objects[i].texture.IsValid();
                     currShade = Shader(M,objects[i].texture,this->Viewmatrix,this->Pmatrix,this->vpMatrix,shade_opt);
@@ -364,31 +371,45 @@ class vgImage {
                         std::vector<float> vt0 = objects[i].textcoords[objects[i].faces[face][0][1] - 1];
                         std::vector<float> vt1 = objects[i].textcoords[objects[i].faces[face][1][1] - 1];
                         std::vector<float> vt2 = objects[i].textcoords[objects[i].faces[face][2][1] - 1];
+                        //face normals
+                        std::vector<float> vn0 = objects[i].normals[objects[i].faces[face][0][2] - 1];
+                        std::vector<float> vn1 = objects[i].normals[objects[i].faces[face][1][2] - 1];
+                        std::vector<float> vn2 = objects[i].normals[objects[i].faces[face][2][2] - 1];
 
                         shaded_vertices.push_back(currShade.vertexShader(v0));
                         shaded_vertices.push_back(currShade.vertexShader(v1));
                         shaded_vertices.push_back(currShade.vertexShader(v2));
+
                         if (isValidTXT) {
                             texture_coords.push_back(vt0);
                             texture_coords.push_back(vt1);
                             texture_coords.push_back(vt2);
                         }
 
+                        face_normals.push_back(vn0);
+                        face_normals.push_back(vn1);
+                        face_normals.push_back(vn2);
+
                         if (objects[i].faces[face].size() == 4) {
                             std::vector<float> v3 = objects[i].vertices[objects[i].faces[face][3][0] - 1];;
                             std::vector<float> vt3 = objects[i].textcoords[objects[i].faces[face][3][1] - 1];;
+                            std::vector<float> vn3 = objects[i].normals[objects[i].faces[face][2][2] - 1];
+                            
                             shaded_vertices.push_back(currShade.vertexShader(v0));
                             shaded_vertices.push_back(currShade.vertexShader(v2));
                             shaded_vertices.push_back(currShade.vertexShader(v3));
+                            
                             if (isValidTXT) {
                                 texture_coords.push_back(vt0);
                                 texture_coords.push_back(vt2);
                                 texture_coords.push_back(vt3);
                             }
+
+                            face_normals.push_back(vn3);
                         }
                     }
                     if (isValidTXT) {
-                         Assemble(shaded_vertices, texture_coords , PRIMTYPE);
+                         Assemble(shaded_vertices, texture_coords ,face_normals, PRIMTYPE);
                     }
                     else {
                         Assemble(shaded_vertices);
@@ -465,12 +486,14 @@ class vgImage {
         }
     private:
 
-            void Assemble(std::vector<std::vector<float>>& vertices, std::vector<std::vector<float>>& text_cords,char PRIMTYPE = 't') {
+            void Assemble(std::vector<std::vector<float>>& vertices, std::vector<std::vector<float>>& text_cords, std::vector<std::vector<float>>& face_normals,char PRIMTYPE = 't') {
                 switch (PRIMTYPE)
                 {
                 case 't':
                     for (int vtx = 0; vtx < vertices.size(); vtx += 3) {
-                        CreateBCTriangle(vertices[vtx], vertices[vtx + 1], vertices[vtx + 2], text_cords[vtx], text_cords[vtx +1 ], text_cords[vtx + 2 ]);
+                        CreateBCTriangle(vertices[vtx], vertices[vtx + 1], vertices[vtx + 2], 
+                                        text_cords[vtx], text_cords[vtx +1 ], text_cords[vtx + 2 ],
+                                        face_normals[vtx], face_normals[vtx + 1], face_normals[vtx + 2]);
                     };
                     break;
 

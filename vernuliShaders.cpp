@@ -8,17 +8,19 @@ class Shader {
     std::vector<std::vector<float>> viewMatrix;
     std::vector<std::vector<float>> perspectiveMatrix;
     std::vector<std::vector<float>> transformMatrix = {};
+    std::vector<float> dirLight;
     int mode;
     Texture txt;
 public:
     Shader(std::vector<std::vector<float>> _modelMatrix, Texture _txt = Texture(), std::vector<std::vector<float>> _viewMatrix = {},
-        std::vector<std::vector<float>> _perspectiveMatrix = {}, std::vector<std::vector<float>> _viewPMatrix = {} , int _shadeopt = 0) {
+        std::vector<std::vector<float>> _perspectiveMatrix = {}, std::vector<std::vector<float>> _viewPMatrix = {}, int _shadeopt = 0, std::vector<float> _dirLight = {1,0,0}) {
         this-> mode = _shadeopt;
         txt = _txt;
         modelMatrix = _modelMatrix;
         viewMatrix = _viewMatrix;
         perspectiveMatrix = _perspectiveMatrix;
         viewPMatrix = _viewPMatrix;
+        dirLight = _dirLight;
         if (_viewMatrix.size() > 0 && _perspectiveMatrix.size() > 0 && _viewPMatrix.size() > 0) {
             //transformMatrix = multiplyMatrices(multiplyMatrices(multiplyMatrices(viewPMatrix, perspectiveMatrix), viewMatrix), modelMatrix);
         }
@@ -68,6 +70,34 @@ public:
         }
        
     }
-
+    std::vector<float> lightShader(std::vector<float> bcrds , std::vector<std::vector<float>> Tcrds , std::vector<std::vector<float>> Ncrds) {
+        // bcrds : coord baricentricas = {u,v,w} 
+        // Tcrds : texture coords = {Ta,Tb,Tc} : vectores cada uno
+        // Ncrds : Norm coords NA,NB,NC : son vectores
+        if (txt.IsValid()) {
+            try {
+                float Tu = bcrds[0] * Tcrds[0][0] + bcrds[1] * Tcrds[1][0] + bcrds[2] * Tcrds[2][0];
+                float Tv = bcrds[0] * Tcrds[0][1] + bcrds[1] * Tcrds[1][1] + bcrds[2] * Tcrds[2][1];
+                Tu = static_cast<float> (Tu);
+                Tv = static_cast<float> (Tv);
+                std::vector<float> _color = txt.getColor(Tu, Tv);
+                std::vector<float> Fnormal = { bcrds[0] * Ncrds[0][0] + bcrds[1] * Ncrds[1][0] + bcrds[2] * Ncrds[2][0] ,
+                                               bcrds[0] * Ncrds[0][1] + bcrds[1] * Ncrds[1][1] + bcrds[2] * Ncrds[2][1] ,
+                                               bcrds[0] * Ncrds[0][2] + bcrds[1] * Ncrds[1][2] + bcrds[2] * Ncrds[2][2]
+                };
+                float intensity = dot_product(Fnormal, { -dirLight[0] , -dirLight[1] , -dirLight[2] });
+                intensity = std::max(intensity, 0.0f);
+                intensity = std::min(1.0f, intensity);
+                float r = static_cast<float>(intensity * _color[0]);
+                float g = static_cast<float>(intensity * _color[1]);
+                float b = static_cast<float>(intensity * _color[2]);
+                return { r,g,b };
+            }
+            catch (std::out_of_range& e) {
+                return { 255,0,255 };
+            }
+        }
+        return {0,0,0};
+    }
     Shader() : modelMatrix({}) , txt(Texture()) {};
 };
