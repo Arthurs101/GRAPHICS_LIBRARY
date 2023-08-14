@@ -336,7 +336,7 @@ class vgImage {
                                 float v0 = static_cast<float> (u * vtA[1] + v * vtB[1] + w * vtC[1]);
                                 // Asignar los valores de color al píxel en el array de pixeles
                                 //std::vector<float> color = currShade.fragmentShader(u0,v0);
-                                std::vector<float> color = currShade.lightShader(
+                                std::vector<float> color = currShade.irradiationShader(
                                     {u,v,w},
                                     { vtA, vtB, vtC },
                                     { vnA, vnB, vnC }
@@ -362,6 +362,7 @@ class vgImage {
                     int faces_ = objects[i].faces.size();
                     bool isValidTXT = objects[i].texture.IsValid();
                     currShade = Shader(M,objects[i].texture,this->Viewmatrix,this->Pmatrix,this->vpMatrix,shade_opt);
+                    currShade.Cmatrix = this->Cmatrix;
                    
                     for (int face = 0; face < faces_; face++) {
                         std::vector<float> v0 = objects[i].vertices[objects[i].faces[face][0][0] - 1];
