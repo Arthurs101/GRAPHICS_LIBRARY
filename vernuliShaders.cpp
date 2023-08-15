@@ -3,7 +3,6 @@
 #include "LinealAlgebra.h"
 #include "ObjectParser.h"
 class Shader {
-    std::vector<std::vector<float>> modelMatrix;
     std::vector<std::vector<float>> viewPMatrix;
     std::vector<std::vector<float>> viewMatrix;
     std::vector<std::vector<float>> perspectiveMatrix;
@@ -17,26 +16,55 @@ public:
         std::vector<std::vector<float>> _perspectiveMatrix = {}, std::vector<std::vector<float>> _viewPMatrix = {}, int _shadeopt = 0, std::vector<float> _dirLight = {0,1,0}) {
         this-> mode = _shadeopt;
         txt = _txt;
-        modelMatrix = _modelMatrix;
         viewMatrix = _viewMatrix;
         perspectiveMatrix = _perspectiveMatrix;
         viewPMatrix = _viewPMatrix;
         dirLight = _dirLight;
         if (_viewMatrix.size() > 0 && _perspectiveMatrix.size() > 0 && _viewPMatrix.size() > 0) {
-            transformMatrix = multiplyMatrices(multiplyMatrices(multiplyMatrices(viewPMatrix, perspectiveMatrix), viewMatrix), modelMatrix);
+            //transformMatrix = multiplyMatrices(multiplyMatrices(multiplyMatrices(viewPMatrix, perspectiveMatrix), viewMatrix), modelMatrix);
+        }
+        if(transformMatrix.size() == 0) {
+            transformMatrix = _modelMatrix;
         }
         
     }
-    std::vector<float> vertexShader(std::vector<float> vertex) {
+    std::vector<float> vertexShader(std::vector<float> vertex, int mode = 0) {
         std::vector<float> vt;
-        if (transformMatrix.size() > 0) {
-            
+        switch (mode)
+        {
+        case 1: //modo de torción
+            return vertexTwister(vertex);
+        default:
             vt = multiplyMatrixByVector(transformMatrix, { vertex[0],vertex[1],vertex[2] ,1 });
+            return { vt[0] / vt[3],vt[1] / vt[3],vt[2] / vt[3] };
         }
-        else {
-            vt = multiplyMatrixByVector(modelMatrix, { vertex[0],vertex[1],vertex[2] ,1 });
-        }
-        return { vt[0] / vt[3],vt[1] / vt[3],vt[2] / vt[3] };
+    }
+    std::vector<float> vertexTwister(std::vector<float> vt) {
+        float angle = 0.1f;
+        float strength = 0.5f;
+        std::vector<float> transformedVt = vt;  // Copiar el vector original
+        //float centerX = 0.5f;
+        //float centerY = 0.5f;
+        //float dx = vt[0] - centerX;
+        //float dy = vt[1] - centerY;
+        //float radius = std::sqrt(dx * dx + dy * dy);
+        //float angle = angleT * radius;
+
+        float x = transformedVt[0];
+        float y = transformedVt[1];
+        float z = transformedVt[2];
+
+        float cosAngle = cos(angle * y);
+        float sinAngle = sin(angle * y);
+
+        transformedVt[0] = x * cosAngle - y * sinAngle;
+        transformedVt[1] = y * sinAngle + x * cosAngle;;
+        transformedVt[2] = z;
+
+        transformedVt[0] *= strength;
+        transformedVt[2] *= strength;
+        transformedVt = multiplyMatrixByVector(transformMatrix, { transformedVt[0],transformedVt[1],transformedVt[2] ,1 });
+        return transformedVt;  // Devolver el vector transformado
     }
     std::vector<float> fragmentShader(float u , float v ) {
         switch (this->mode)
@@ -152,43 +180,6 @@ public:
             return { r, g, b };
         }
     }
-    std::vector<float> irradiationShader(std::vector<float> bcrds, std::vector<std::vector<float>> Tcrds, std::vector<std::vector<float>> Ncrds) {
-        // bcrds : coord baricentricas = {u,v,w} 
-        // Tcrds : texture coords = {Ta,Tb,Tc} : vectores cada uno
-        // Ncrds : Norm coords NA,NB,NC : son vectores
-        if (txt.IsValid()) {
-                float Tu = bcrds[0] * Tcrds[0][0] + bcrds[1] * Tcrds[1][0] + bcrds[2] * Tcrds[2][0];
-                float Tv = bcrds[0] * Tcrds[0][1] + bcrds[1] * Tcrds[1][1] + bcrds[2] * Tcrds[2][1];
-                Tu = static_cast<float> (Tu);
-                Tv = static_cast<float> (Tv);
-                std::vector<float> _color = txt.getColor(Tu, Tv);
-                std::vector<float> Fnormal = { bcrds[0] * Ncrds[0][0] + bcrds[1] * Ncrds[1][0] + bcrds[2] * Ncrds[2][0] ,
-                                               bcrds[0] * Ncrds[0][1] + bcrds[1] * Ncrds[1][1] + bcrds[2] * Ncrds[2][1] ,
-                                               bcrds[0] * Ncrds[0][2] + bcrds[1] * Ncrds[1][2] + bcrds[2] * Ncrds[2][2]
-                };
-                float intensity = dot_product(Fnormal, { -dirLight[0] , -dirLight[1] , -dirLight[2] });
-                intensity = std::max(intensity, 0.0f);
-                intensity = std::min(1.0f, intensity);
-                std::vector<float> cameraForward = { Cmatrix[0][2] ,Cmatrix[1][2] , Cmatrix[2][2] };
-                float glowamount = dot_product(Fnormal, cameraForward);
-                glowamount = 1 - glowamount;
-                glowamount = std::max(glowamount, 0.0f);
-                glowamount = std::min(glowamount, 1.0f); //garantizar que no sea menor que 0 ni mayor a 1
-                if (glowamount > intensity) {
-                    float _g = static_cast<float>(intensity *255.0f);
-                    float _b = static_cast<float>( (1 - intensity )* _color[2]);
-                    return { 0, _g, _b };
-                }
-                else {
-                    float _r = static_cast<float>(intensity * _color[0]);
-                    float _g = static_cast<float>(intensity * _color[1]);
-                    float _b = static_cast<float>(intensity * _color[2]);
-                    return { 255.0f - _r, 255.0f - _g,  255.0f -  _b };
-                }
-                
-        }
-        return { 0,0,0 };
-    }
     
-    Shader() : modelMatrix({}) , txt(Texture()) {};
+    Shader() : transformMatrix({}) , txt(Texture()) {};
 };
