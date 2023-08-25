@@ -335,12 +335,10 @@ class vgImage {
                                 float u0 = static_cast<float>(u * vtA[0] + v * vtB[0] + w * vtC[0]);
                                 float v0 = static_cast<float> (u * vtA[1] + v * vtB[1] + w * vtC[1]);
                                 // Asignar los valores de color al píxel en el array de pixeles
-                                std::vector<float> color = currShade.fragmentShader(u0,v0);
-                                //std::vector<float> color = currShade.lightShader(
-                                //    {u,v,w},
-                                //    { vtA, vtB, vtC },
-                                //    { vnA, vnB, vnC }
-                                //);
+                                ParamFShader args = ParamFShader(u0, v0, { u,v,w },
+                                    { vtA, vtB, vtC },
+                                    { vnA, vnB, vnC });
+                                std::vector<float> color = currShade.applyFragmentShader(args);
                                 unsigned char r, g, b;
                                 r = static_cast<unsigned char>(color[0]);
                                 g = static_cast<unsigned char>(color[1]);

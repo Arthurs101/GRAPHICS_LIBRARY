@@ -17,7 +17,6 @@ struct ParamFShader {
     }
 };
 class Shader {
-    std::vector<std::vector<float>> modelMatrix;
     std::vector<std::vector<float>> viewPMatrix;
     std::vector<std::vector<float>> viewMatrix;
     std::vector<std::vector<float>> perspectiveMatrix;
@@ -31,25 +30,21 @@ public:
         std::vector<std::vector<float>> _perspectiveMatrix = {}, std::vector<std::vector<float>> _viewPMatrix = {}, int _shadeopt = 0, std::vector<float> _dirLight = {0,1,0}) {
         this-> mode = _shadeopt;
         txt = _txt;
-        modelMatrix = _modelMatrix;
         viewMatrix = _viewMatrix;
         perspectiveMatrix = _perspectiveMatrix;
         viewPMatrix = _viewPMatrix;
         dirLight = _dirLight;
         if (_viewMatrix.size() > 0 && _perspectiveMatrix.size() > 0 && _viewPMatrix.size() > 0) {
-            transformMatrix = multiplyMatrices(multiplyMatrices(multiplyMatrices(viewPMatrix, perspectiveMatrix), viewMatrix), _modelMatrix);
+            //transformMatrix = multiplyMatrices(multiplyMatrices(multiplyMatrices(viewPMatrix, perspectiveMatrix), viewMatrix), _modelMatrix);
+        }
+        if (transformMatrix.size() == 0) {
+            transformMatrix = _modelMatrix;
         }
         
     }
     std::vector<float> vertexShader(std::vector<float> vertex) {
-        std::vector<float> vt;
-        if (transformMatrix.size() > 0) {
-            
-            vt = multiplyMatrixByVector(transformMatrix, { vertex[0],vertex[1],vertex[2] ,1 });
-        }
-        else {
-            vt = multiplyMatrixByVector(modelMatrix, { vertex[0],vertex[1],vertex[2] ,1 });
-        }
+        std::vector<float> vt;            
+        vt = multiplyMatrixByVector(transformMatrix, { vertex[0],vertex[1],vertex[2] ,1 });
         return { vt[0] / vt[3],vt[1] / vt[3],vt[2] / vt[3] };
     }
     std::vector<float> fragmentShader(float u , float v ) {
