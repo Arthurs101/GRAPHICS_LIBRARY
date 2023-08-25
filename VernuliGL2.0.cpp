@@ -335,12 +335,12 @@ class vgImage {
                                 float u0 = static_cast<float>(u * vtA[0] + v * vtB[0] + w * vtC[0]);
                                 float v0 = static_cast<float> (u * vtA[1] + v * vtB[1] + w * vtC[1]);
                                 // Asignar los valores de color al píxel en el array de pixeles
-                                //std::vector<float> color = currShade.fragmentShader(u0,v0);
-                                std::vector<float> color = currShade.irradiationShader(
-                                    {u,v,w},
-                                    { vtA, vtB, vtC },
-                                    { vnA, vnB, vnC }
-                                );
+                                std::vector<float> color = currShade.fragmentShader(u0,v0);
+                                //std::vector<float> color = currShade.lightShader(
+                                //    {u,v,w},
+                                //    { vtA, vtB, vtC },
+                                //    { vnA, vnB, vnC }
+                                //);
                                 unsigned char r, g, b;
                                 r = static_cast<unsigned char>(color[0]);
                                 g = static_cast<unsigned char>(color[1]);
@@ -373,9 +373,19 @@ class vgImage {
                         std::vector<float> vt1 = objects[i].textcoords[objects[i].faces[face][1][1] - 1];
                         std::vector<float> vt2 = objects[i].textcoords[objects[i].faces[face][2][1] - 1];
                         //face normals
-                        std::vector<float> vn0 = objects[i].normals[objects[i].faces[face][0][2] - 1];
-                        std::vector<float> vn1 = objects[i].normals[objects[i].faces[face][1][2] - 1];
-                        std::vector<float> vn2 = objects[i].normals[objects[i].faces[face][2][2] - 1];
+                        std::vector<float> vn0, vn1, vn2 , vn3;
+                        if (objects[i].normals.size() == 0) {
+                            vn0 = { 0,0,0 };
+                            vn1 = { 0,0,0 };
+                            vn2 = { 0,0,0 };
+                            vn3 = { 0,0,0 };
+                        }
+                        else {
+                            std::vector<float> vn0 = objects[i].normals[objects[i].faces[face][0][2] - 1];
+                            std::vector<float> vn1 = objects[i].normals[objects[i].faces[face][1][2] - 1];
+                            std::vector<float> vn2 = objects[i].normals[objects[i].faces[face][2][2] - 1];
+                        }
+                        
 
                         shaded_vertices.push_back(currShade.vertexShader(v0));
                         shaded_vertices.push_back(currShade.vertexShader(v1));
@@ -394,7 +404,7 @@ class vgImage {
                         if (objects[i].faces[face].size() == 4) {
                             std::vector<float> v3 = objects[i].vertices[objects[i].faces[face][3][0] - 1];;
                             std::vector<float> vt3 = objects[i].textcoords[objects[i].faces[face][3][1] - 1];;
-                            std::vector<float> vn3 = objects[i].normals[objects[i].faces[face][3][2] - 1];
+                            vn3 = objects[i].normals[objects[i].faces[face][3][2] - 1];
                             
                             shaded_vertices.push_back(currShade.vertexShader(v0));
                             shaded_vertices.push_back(currShade.vertexShader(v2));

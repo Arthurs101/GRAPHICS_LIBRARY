@@ -2,6 +2,20 @@
 #include <vector>
 #include "LinealAlgebra.h"
 #include "ObjectParser.h"
+//estruturas
+//dictionario de datos para el shadeModHandler
+struct ParamFShader {
+    float u; 
+    float v;
+    std::vector<float> bcrds;
+    std::vector<std::vector<float>> Tcrds;
+    std::vector<std::vector<float>> Ncrds;
+
+    ParamFShader(float u, float v, const std::vector<float>& bcrds, const std::vector<std::vector<float>>& Tcrds, const std::vector<std::vector<float>>& Ncrds)
+        : u(u), v(v), bcrds(bcrds), Tcrds(Tcrds), Ncrds(Ncrds)
+    {
+    }
+};
 class Shader {
     std::vector<std::vector<float>> modelMatrix;
     std::vector<std::vector<float>> viewPMatrix;
@@ -23,7 +37,7 @@ public:
         viewPMatrix = _viewPMatrix;
         dirLight = _dirLight;
         if (_viewMatrix.size() > 0 && _perspectiveMatrix.size() > 0 && _viewPMatrix.size() > 0) {
-            transformMatrix = multiplyMatrices(multiplyMatrices(multiplyMatrices(viewPMatrix, perspectiveMatrix), viewMatrix), modelMatrix);
+            transformMatrix = multiplyMatrices(multiplyMatrices(multiplyMatrices(viewPMatrix, perspectiveMatrix), viewMatrix), _modelMatrix);
         }
         
     }
@@ -189,6 +203,19 @@ public:
         }
         return { 0,0,0 };
     }
-    
-    Shader() : modelMatrix({}) , txt(Texture()) {};
+    //HANDLER DE MODOS DEL FRAGMENT SHADER
+    std::vector<float> applyFragmentShader(ParamFShader args) {
+        switch (this->mode)
+        {
+        case 2: //modo light shader
+            return this->lightShader(args.bcrds , args.Tcrds , args.Ncrds);
+            break;
+        case 3: //modo de "aerodinamicas"
+            return this->dragShader(args.bcrds, args.Tcrds, args.Ncrds);
+            break;
+        default://de manera default se hará el shading con textura
+            return this->fragmentShader(args.u , args.v);
+        }
+    }
+    Shader() : transformMatrix({}) , txt(Texture()) {};
 };
