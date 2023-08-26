@@ -52,7 +52,7 @@ public:
                 return pixels[y][x];
             }
             else {
-                return { 255 , 0 ,0 };
+                return { 0 , 0 ,0 };
             }
 
             
@@ -74,10 +74,14 @@ public:
     std::vector<float> transform;
     std::vector<float> scale;
     std::vector<float> rotation;
+    std::string ObjName;
     Texture texture;
 
 
-    ObjParser(const std::string& filename, const std::vector<float>& transformobj, const std::vector<float>& scaleobj, const std::vector<float>& rotationobj , std::string texturefilename = "") {
+    ObjParser(const std::string& name, const std::string& filename, const std::vector<float>& transformobj, const std::vector<float>& scaleobj, const std::vector<float>& rotationobj , std::string texturefilename = "") {
+        
+        ObjName = name;
+
         if (texturefilename != "") {
             texture = Texture(texturefilename);
         }
@@ -145,7 +149,7 @@ public:
         scale = std::move(scaleobj);
         rotation = std::move(rotationobj);
     }
-  
+
 };
 
 

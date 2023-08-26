@@ -23,28 +23,63 @@ class Shader {
     std::vector<std::vector<float>> transformMatrix = {};
     std::vector<float> dirLight;
     int mode;
+    int vMode;
     Texture txt;
 public:
     std::vector<std::vector<float>> Cmatrix;
     Shader(std::vector<std::vector<float>> _modelMatrix, Texture _txt = Texture(), std::vector<std::vector<float>> _viewMatrix = {},
-        std::vector<std::vector<float>> _perspectiveMatrix = {}, std::vector<std::vector<float>> _viewPMatrix = {}, int _shadeopt = 0, std::vector<float> _dirLight = {0,1,0}) {
+        std::vector<std::vector<float>> _perspectiveMatrix = {}, std::vector<std::vector<float>> _viewPMatrix = {}, int _shadeopt = 0, int _vertexopt = 0, std::vector<float> _dirLight = {0,1,0}) {
         this-> mode = _shadeopt;
+        this-> vMode = _vertexopt;
         txt = _txt;
         viewMatrix = _viewMatrix;
         perspectiveMatrix = _perspectiveMatrix;
         viewPMatrix = _viewPMatrix;
         dirLight = _dirLight;
         if (_viewMatrix.size() > 0 && _perspectiveMatrix.size() > 0 && _viewPMatrix.size() > 0) {
-            //transformMatrix = multiplyMatrices(multiplyMatrices(multiplyMatrices(viewPMatrix, perspectiveMatrix), viewMatrix), _modelMatrix);
+            transformMatrix = multiplyMatrices(multiplyMatrices(multiplyMatrices(viewPMatrix, perspectiveMatrix), viewMatrix), _modelMatrix);
         }
         if (transformMatrix.size() == 0) {
             transformMatrix = _modelMatrix;
         }
         
     }
+    std::vector<float> vertexTwister(std::vector<float> vt) {
+        float angle = 0.1f;
+        float strength = 0.5f;
+        std::vector<float> transformedVt = vt;  // Copiar el vector original
+        //float centerX = 0.5f;
+        //float centerY = 0.5f;
+        //float dx = vt[0] - centerX;
+        //float dy = vt[1] - centerY;
+        //float radius = std::sqrt(dx * dx + dy * dy);
+        //float angle = angleT * radius;
+
+        float x = transformedVt[0];
+        float y = transformedVt[1];
+        float z = transformedVt[2];
+
+        float cosAngle = cos(angle * y);
+        float sinAngle = sin(angle * y);
+
+        transformedVt[0] += x * cosAngle - y * sinAngle;
+        transformedVt[1] += (y * sinAngle + x * cosAngle)*strength;
+        transformedVt[2] = z;
+
+        transformedVt = multiplyMatrixByVector(transformMatrix, { transformedVt[0],transformedVt[1],transformedVt[2] ,1 });
+        return transformedVt;  // Devolver el vector transformado
+    }
     std::vector<float> vertexShader(std::vector<float> vertex) {
-        std::vector<float> vt;            
-        vt = multiplyMatrixByVector(transformMatrix, { vertex[0],vertex[1],vertex[2] ,1 });
+        std::vector<float> vt;
+        switch (vMode)
+        {
+        case 1:
+            vt = vertexTwister(vertex);
+            break;
+        default:
+            vt = multiplyMatrixByVector(transformMatrix, { vertex[0],vertex[1],vertex[2] ,1 });
+            break;
+        }
         return { vt[0] / vt[3],vt[1] / vt[3],vt[2] / vt[3] };
     }
     std::vector<float> fragmentShader(float u , float v ) {
@@ -136,15 +171,15 @@ public:
         return { 0,0,0 };
     }
     std::vector<float> dragCoeficient(float intensity) {
-        if (intensity >= 0.5f) {
+        if (intensity >= 0.8f) {
             // Rojo puro
             return { 255.0f, 0.0f, 0.0f };
         }
-        else if (intensity <= 0.0f) {
+        else if (intensity <= 0.2f) {
             // Azul puro
             return { 0.0f, 0.0f, 255.0f };
         }
-        else if (intensity >= 0.3f) {
+        else if (intensity >= 0.5f) {
             // Interpolación entre rojo y verde
             float factor = (intensity - 0.3f) * 2.0f;
             float r = 255.0f - (factor * 255.0f);
@@ -183,10 +218,16 @@ public:
                 glowamount = 1 - glowamount;
                 glowamount = std::max(glowamount, 0.0f);
                 glowamount = std::min(glowamount, 1.0f); //garantizar que no sea menor que 0 ni mayor a 1
-                if (glowamount > intensity) {
-                    float _g = static_cast<float>(intensity *255.0f);
-                    float _b = static_cast<float>( (1 - intensity )* _color[2]);
-                    return { 0, _g, _b };
+                if (glowamount > intensity ) {
+                    if(glowamount/intensity > 2){
+                        float _g = static_cast<float>(glowamount* 255.0f);
+                        float _b = static_cast<float>((1 - glowamount) * _color[2]);
+                        float _r = static_cast<float>(intensity * 10.0f);
+                        return { _r, _g,_b };
+                    }
+                    else {
+                        return _color;
+                    }                     
                 }
                 else {
                     float _r = static_cast<float>(intensity * _color[0]);
@@ -208,8 +249,11 @@ public:
         case 3: //modo de "aerodinamicas"
             return this->dragShader(args.bcrds, args.Tcrds, args.Ncrds);
             break;
+        case 4:
+            return this->irradiationShader(args.bcrds, args.Tcrds, args.Ncrds);
+            break;
         default://de manera default se hará el shading con textura
-            return this->fragmentShader(args.u , args.v);
+            return this->fragmentShader(static_cast<float>(args.u) , static_cast<float>(args.v));
         }
     }
     Shader() : transformMatrix({}) , txt(Texture()) {};

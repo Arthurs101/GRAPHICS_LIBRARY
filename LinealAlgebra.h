@@ -68,9 +68,9 @@ std::vector<float> barycentricCoords(const std::vector<float>& A, const std::vec
 
     float u = areaPCB / areaABC;
     float v = areaACP / areaABC;
-    float w = areaABP / areaABC;
+    float w = 1.0 -u -v;
 
-    if (0 <= u && u <= 1 && 0 <= v && v <= 1 && 0 <= w && w <= 1 && std::abs(u + v + w - 1.0) < 1e-4) {
+    if (0 <= u && u <= 1 && 0 <= v && v <= 1 && 0 <= w && w <= 1 && (std::abs(u + v + w - 1.0) == 0)) {
         return std::vector<float>{u, v, w};
     }
     else {

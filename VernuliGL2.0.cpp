@@ -11,23 +11,23 @@
 
 //estructuras
 struct Pixel {
-    unsigned char red;
-    unsigned char green;
-    unsigned char blue;
-    Pixel(unsigned char r, unsigned char g, unsigned char b) {
+    float red;
+    float green;
+    float blue;
+    Pixel(float r, float g, float b) {
         red = r;
         green = g;
         blue = b;
     }
     Pixel(std::vector<int> rgb) {
-        red = static_cast<unsigned char>(rgb[0]);
-        green = static_cast<unsigned char>(rgb[1]);
-        blue = static_cast<unsigned char>(rgb[2]);
+        red = static_cast<float>(rgb[0]);
+        green = static_cast<float>(rgb[1]);
+        blue = static_cast<float>(rgb[2]);
     }
     Pixel(std::vector<float> rgb) {
-        red = static_cast<unsigned char>(rgb[0]);
-        green = static_cast<unsigned char>(rgb[1]);
-        blue = static_cast<unsigned char>(rgb[2]);
+        red = static_cast<float>(rgb[0]);
+        green = static_cast<float>(rgb[1]);
+        blue = static_cast<float>(rgb[2]);
     }
 };
 struct Image {
@@ -38,7 +38,17 @@ struct Image {
     Image(int w, int h) : pixels(w, std::vector<Pixel>(h, { 0, 0, 0 })),
         zbuffer(w, std::vector<float>(h, 3.4028235e38)), width(w), height(h) {} //profundidades de zbuffer siendo el valor máximo posible para un float
 };
-
+//estructura que indica el nombre del objeto, e instrucciones para el render
+struct RenderInst {
+    std::string ObName; //nombre del objeto
+    char PRIMTYPE; //modo de primitivas
+    int ShaderMode; //modos del shader
+    int VertexMode;
+    RenderInst(const std::string& ObName, char PRIMTYPE, int ShaderMode, int VertexMode)
+        : ObName(ObName), PRIMTYPE(PRIMTYPE), ShaderMode(ShaderMode), VertexMode(VertexMode)
+    {
+    }
+};
 //constantes y variables globales
 # define PI 3.14159265
 
@@ -54,8 +64,8 @@ class vgImage {
     std::vector<std::vector<float>> Pmatrix;
     int vpX, vpY, vpWidth, vpHeight;
     std::vector<std::vector<float>> vpMatrix;
-    std::vector<float> LightPos = {0,0,0};
     public:
+        std::vector<float> LightPos = { 0,1,0 };
         vgImage(int w, int h) : width(w), height(h), imgData(w, h) {
             glViewport(0, 0, this->width, this->height);
             vgSetCamara();
@@ -102,9 +112,9 @@ class vgImage {
             // Color table
             for (int y = 0; y < height; y++) { // BMP files are stored upside down
                 for (int x = 0; x < width; x++) {
-                    file.put(imgData.pixels[x][y].blue);
-                    file.put(imgData.pixels[x][y].green);
-                    file.put(imgData.pixels[x][y].red);
+                    file.put(static_cast<float>(imgData.pixels[x][y].blue));
+                    file.put(static_cast<float>(imgData.pixels[x][y].green));
+                    file.put(static_cast<float>(imgData.pixels[x][y].red));
                 }
             }
 
@@ -250,8 +260,8 @@ class vgImage {
         }
         
         /*cargar objetos 3d*/
-        void vgLoad3dObject(const std::string& filename, const std::vector<float>& transformobj = { 0,0,0 }, const std::vector<float>& scaleobj = { 1,1,1 }, const std::vector<float>& rotationobj = { 0,0,0 }, std::string texturefilename = "") {
-            objects.push_back(ObjParser(filename, transformobj, scaleobj, rotationobj, texturefilename));
+        void vgLoad3dObject(const std::string& name, const std::string& filename, const std::vector<float>& transformobj = { 0,0,0 }, const std::vector<float>& scaleobj = { 1,1,1 }, const std::vector<float>& rotationobj = { 0,0,0 }, std::string texturefilename = "") {
+            objects.push_back(ObjParser(name, filename, transformobj, scaleobj, rotationobj, texturefilename));
         }
 
         void CreateBCTriangle(const std::vector<float>& A, const std::vector<float>& B, const std::vector<float>& C, bool multicolor = false, const Pixel& color = {255,255,255}) {
@@ -275,18 +285,18 @@ class vgImage {
                         float u = baryCoords[0];
                         float v = baryCoords[1];
                         float w = baryCoords[2];
-                        unsigned char r;
-                        unsigned char g ;
-                        unsigned char b ;
+                       float r;
+                       float g ;
+                       float b ;
                         float z = u * A[2] + v * B[2] + w * C[2];
                         if (x < imgData.width && y < imgData.height && x >= 0 && y >= 0) {
                             if (z < imgData.zbuffer[x][y]) {
                                 this->imgData.zbuffer[x][y] = z;
                                 // Calcular los valores de color del píxel mediante interpolación lineal
                                 if (multicolor) {
-                                    r = static_cast<unsigned char>(color.red * u);
-                                    g = static_cast<unsigned char>(color.green * v);
-                                    b = static_cast<unsigned char>(color.blue * w);
+                                    r = static_cast<float>(color.red * u);
+                                    g = static_cast<float>(color.green * v);
+                                    b = static_cast<float>(color.blue * w);
                                 }
                                 else {
                                     r = color.red;
@@ -310,9 +320,6 @@ class vgImage {
             int maxX = std::round(std::max({ A[0], B[0], C[0] }));
             int minY = std::round(std::min({ A[1], B[1], C[1] }));
             int maxY = std::round(std::max({ A[1], B[1], C[1] }));
-
-            // Obtener el área del triángulo (usada para determinar la escala del gradiente de colores)
-            float areaABC = abs((A[0] * (B[1] - C[1]) + B[0] * (C[1] - A[1]) + C[0] * (A[1] - B[1])));
 
             // Bucle para iterar sobre cada píxel dentro del triángulo
             for (int x = minX; x <= maxX; x++) {
@@ -339,93 +346,104 @@ class vgImage {
                                     { vtA, vtB, vtC },
                                     { vnA, vnB, vnC });
                                 std::vector<float> color = currShade.applyFragmentShader(args);
-                                unsigned char r, g, b;
-                                r = static_cast<unsigned char>(color[0]);
-                                g = static_cast<unsigned char>(color[1]);
-                                b = static_cast<unsigned char>(color[2]);
-                                vgPoint(x, y, { r, g, b });
+                                float r, g, b;
+                                r = static_cast<float>(color[0]);
+                                g = static_cast<float>(color[1]);
+                                b = static_cast<float>(color[2]);
+                                vgPoint(x, y, { r,g,b});
                             }
                         }
                     }
                 }
             }
         }
-
-        void Render3DObjects(int shade_opt = 0 ,char PRIMTYPE = 't') {
-            for (int i = 0; i < objects.size(); i++) {
-                    std::vector<std::vector<float>> M = Generate3DObjectMatrix(objects[i].transform, objects[i].scale, objects[i].rotation);
-                    std::vector<std::vector<float>> shaded_vertices = {};
-                    std::vector<std::vector<float>> texture_coords = {};
-                    std::vector<std::vector<float>> face_normals = {};
-                    int faces_ = objects[i].faces.size();
-                    bool isValidTXT = objects[i].texture.IsValid();
-                    currShade = Shader(M,objects[i].texture,this->Viewmatrix,this->Pmatrix,this->vpMatrix,shade_opt);
-                    currShade.Cmatrix = this->Cmatrix;
-                   
-                    for (int face = 0; face < faces_; face++) {
-                        std::vector<float> v0 = objects[i].vertices[objects[i].faces[face][0][0] - 1];
-                        std::vector<float> v1 = objects[i].vertices[objects[i].faces[face][1][0] - 1];
-                        std::vector<float> v2 = objects[i].vertices[objects[i].faces[face][2][0] - 1];
-                        //texture coords
-                        std::vector<float> vt0 = objects[i].textcoords[objects[i].faces[face][0][1] - 1];
-                        std::vector<float> vt1 = objects[i].textcoords[objects[i].faces[face][1][1] - 1];
-                        std::vector<float> vt2 = objects[i].textcoords[objects[i].faces[face][2][1] - 1];
-                        //face normals
-                        std::vector<float> vn0, vn1, vn2 , vn3;
-                        if (objects[i].normals.size() == 0) {
-                            vn0 = { 0,0,0 };
-                            vn1 = { 0,0,0 };
-                            vn2 = { 0,0,0 };
-                            vn3 = { 0,0,0 };
-                        }
-                        else {
-                            std::vector<float> vn0 = objects[i].normals[objects[i].faces[face][0][2] - 1];
-                            std::vector<float> vn1 = objects[i].normals[objects[i].faces[face][1][2] - 1];
-                            std::vector<float> vn2 = objects[i].normals[objects[i].faces[face][2][2] - 1];
-                        }
-                        
-
-                        shaded_vertices.push_back(currShade.vertexShader(v0));
-                        shaded_vertices.push_back(currShade.vertexShader(v1));
-                        shaded_vertices.push_back(currShade.vertexShader(v2));
-
-                        if (isValidTXT) {
-                            texture_coords.push_back(vt0);
-                            texture_coords.push_back(vt1);
-                            texture_coords.push_back(vt2);
-                        }
-
-                        face_normals.push_back(vn0);
-                        face_normals.push_back(vn1);
-                        face_normals.push_back(vn2);
-
-                        if (objects[i].faces[face].size() == 4) {
-                            std::vector<float> v3 = objects[i].vertices[objects[i].faces[face][3][0] - 1];;
-                            std::vector<float> vt3 = objects[i].textcoords[objects[i].faces[face][3][1] - 1];;
-                            vn3 = objects[i].normals[objects[i].faces[face][3][2] - 1];
-                            
-                            shaded_vertices.push_back(currShade.vertexShader(v0));
-                            shaded_vertices.push_back(currShade.vertexShader(v2));
-                            shaded_vertices.push_back(currShade.vertexShader(v3));
-                            
-                            if (isValidTXT) {
-                                texture_coords.push_back(vt0);
-                                texture_coords.push_back(vt2);
-                                texture_coords.push_back(vt3);
-                            }
-                            face_normals.push_back(vn0);
-                            face_normals.push_back(vn2);
-                            face_normals.push_back(vn3);
-                        }
+        void Render3DObjects(std::vector<RenderInst> inst) {
+            for (size_t i = 0; i < inst.size(); i++)
+            {
+                for (int j = 0; j < objects.size(); j++) {
+                    if (objects[j].ObjName == inst[i].ObName) {
+                        Render3DObject(objects[j],inst[i].ShaderMode,inst[i].VertexMode,inst[i].PRIMTYPE);
                     }
+                }
+            }
+
+        }
+        void Render3DObject(ObjParser obj, int shade_opt = 0, int vertex_opt = 0, char PRIMTYPE = 't') {
+            std::vector<std::vector<float>> M = Generate3DObjectMatrix(obj.transform, obj.scale, obj.rotation);
+            std::vector<std::vector<float>> shaded_vertices = {};
+            std::vector<std::vector<float>> texture_coords = {};
+            std::vector<std::vector<float>> face_normals = {};
+            int faces_ = obj.faces.size();
+            bool isValidTXT = obj.texture.IsValid();
+            currShade = Shader(M, obj.texture, this->Viewmatrix, this->Pmatrix, this->vpMatrix, shade_opt, vertex_opt,this->LightPos);
+            currShade.Cmatrix = this->Cmatrix;
+
+            for (int face = 0; face < faces_; face++) {
+                std::vector<float> v0 = obj.vertices[obj.faces[face][0][0] - 1];
+                std::vector<float> v1 = obj.vertices[obj.faces[face][1][0] - 1];
+                std::vector<float> v2 = obj.vertices[obj.faces[face][2][0] - 1];
+                //texture coords
+                std::vector<float> vt0 = obj.textcoords[obj.faces[face][0][1] - 1];
+                std::vector<float> vt1 = obj.textcoords[obj.faces[face][1][1] - 1];
+                std::vector<float> vt2 = obj.textcoords[obj.faces[face][2][1] - 1];
+                //face normals
+                std::vector<float> vn0, vn1, vn2, vn3;
+                if (obj.normals.size() == 0) {
+                    vn0 = { 0,0,0 };
+                    vn1 = { 0,0,0 };
+                    vn2 = { 0,0,0 };
+                    vn3 = { 0,0,0 };
+                }
+                else {
+                     vn0 = obj.normals[obj.faces[face][0][2] - 1];
+                     vn1 = obj.normals[obj.faces[face][1][2] - 1];
+                     vn2 = obj.normals[obj.faces[face][2][2] - 1];
+                }
+
+
+                shaded_vertices.push_back(currShade.vertexShader(v0));
+                shaded_vertices.push_back(currShade.vertexShader(v1));
+                shaded_vertices.push_back(currShade.vertexShader(v2));
+
+                if (isValidTXT) {
+                    texture_coords.push_back(vt0);
+                    texture_coords.push_back(vt1);
+                    texture_coords.push_back(vt2);
+                }
+
+                face_normals.push_back(vn0);
+                face_normals.push_back(vn1);
+                face_normals.push_back(vn2);
+
+                if (obj.faces[face].size() == 4) {
+                    std::vector<float> v3 = obj.vertices[obj.faces[face][3][0] - 1];;
+                    std::vector<float> vt3 = obj.textcoords[obj.faces[face][3][1] - 1];;
+                    vn3 = obj.normals[obj.faces[face][3][2] - 1];
+
+                    shaded_vertices.push_back(currShade.vertexShader(v0));
+                    shaded_vertices.push_back(currShade.vertexShader(v2));
+                    shaded_vertices.push_back(currShade.vertexShader(v3));
+
                     if (isValidTXT) {
-                         Assemble(shaded_vertices, texture_coords ,face_normals, PRIMTYPE);
+                        texture_coords.push_back(vt0);
+                        texture_coords.push_back(vt2);
+                        texture_coords.push_back(vt3);
                     }
-                    else {
-                        Assemble(shaded_vertices);
-                    }
-
-
+                    face_normals.push_back(vn0);
+                    face_normals.push_back(vn2);
+                    face_normals.push_back(vn3);
+                }
+            }
+            if (isValidTXT) {
+                Assemble(shaded_vertices, texture_coords, face_normals, PRIMTYPE);
+            }
+            else {
+                Assemble(shaded_vertices);
+            }
+        }
+        void Render3DObjects(int shade_opt = 0 ,int vertex_opt = 0 ,char PRIMTYPE = 't') {
+            for (int i = 0; i < objects.size(); i++) {
+                Render3DObject(objects[i],shade_opt,vertex_opt,PRIMTYPE);
             }
             
         }
@@ -436,11 +454,11 @@ class vgImage {
                     float u = static_cast<float>(x) / width;
                     float v = static_cast<float>(y) / height;
 
-                    unsigned char r, g, b;
+                   float r, g, b;
                     std::vector<float> color = txt.getColor(u, v);
-                    r = static_cast<unsigned char>(color[0]);
-                    g = static_cast<unsigned char>(color[1]);
-                    b = static_cast<unsigned char>(color[2]);
+                    r = static_cast<float>(color[0]);
+                    g = static_cast<float>(color[1]);
+                    b = static_cast<float>(color[2]);
 
                     vgPoint(x, y, { r, g, b });
                 }
