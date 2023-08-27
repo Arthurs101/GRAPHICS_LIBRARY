@@ -46,7 +46,7 @@ public:
     }
     std::vector<float> vertexTwister(std::vector<float> vt) {
         float angle = 0.1f;
-        float strength = 0.5f;
+        float strength = 2.0f;
         std::vector<float> transformedVt = vt;  // Copiar el vector original
         //float centerX = 0.5f;
         //float centerY = 0.5f;
