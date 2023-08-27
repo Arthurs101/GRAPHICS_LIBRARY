@@ -20,7 +20,7 @@ int main() {
     RenderInst _skull = RenderInst("SKULL", 't', 2, 1);
     RenderInst _tank = RenderInst("tank", 't', 3, 0);
     RenderInst _frei = RenderInst("FREIGHT", 't', 1, 0);
-    Img.Render3DObjects({_frei,_tank, _skull,_bot1});
-    Img.vgWriteBMP("T-Out.bmp");
+    Img.Render3DObjects({ _frei,_tank, _skull,_bot1 });
+    Img.vgWriteBMP("render.bmp");
     return 0;
 }

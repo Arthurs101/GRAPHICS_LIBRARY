@@ -6,3 +6,5 @@
 - VernuliShaders.cpp : archivo para los vertex y fragment shaders
 - LinealAlgebra.h : librería propia de algebra lineal
 - GraphicsLibrary.cpp : archivo main
+- render.bmp : archivo de resultado con shaders
+- noshade.bmp : archivo de resultado antes de aplicar shaders
